@@ -93,8 +93,23 @@
   ((app :initarg :app :accessor buflist-app))
   (:default-initargs :title " buffers " :border t))
 
+(defun get-active-buffer-id (app)
+  "Get the buffer ID for the currently active pane.
+   In split mode with secondary pane active, returns split-buffer-id.
+   Otherwise returns current-buffer-id."
+  (let* ((ui (clatter.core.model:app-ui app))
+         (split-mode (clatter.core.model:ui-split-mode ui))
+         (active-pane (clatter.core.model:ui-active-pane ui)))
+    (if (and split-mode
+             (or (and (eq split-mode :horizontal) (eq active-pane :right))
+                 (and (eq split-mode :vertical) (eq active-pane :bottom))))
+        (clatter.core.model:ui-split-buffer-id ui)
+        (clatter.core.model:app-current-buffer-id app))))
+
 (defmethod panel-render ((panel buflist-panel))
   (when (panel-visible-p panel)
+    ;; Ensure clean state before rendering content
+    (clatter.ansi:reset)
     (let* ((app (buflist-app panel))
            (theme (clatter.ui.theme:current-theme))
            (content-x (panel-content-x panel))
@@ -102,7 +117,7 @@
            (content-w (panel-content-width panel))
            (content-h (panel-content-height panel))
            (buffers (clatter.core.model:app-buffers app))
-           (current-id (clatter.core.model:app-current-buffer-id app))
+           (current-id (get-active-buffer-id app))  ;; Use active pane's buffer
            (row 0)
            (visual-order nil)
            (networks (make-hash-table :test 'equal))
@@ -147,27 +162,32 @@
                                    (format nil "~a[~d]" indent unread))
                                   (t indent)))
                      (line (format nil "~a~a" indicator title)))
-                ;; Position and draw
+                ;; Position and draw - reset before each line to clear any stale state
+                (clatter.ansi:reset)
                 (clatter.ansi:cursor-to (+ content-y row) content-x)
-                ;; Style based on state
-                (cond
-                  (current-p
-                   (clatter.ansi:inverse)
-                   (princ (subseq line 0 (min (length line) content-w)) *terminal-io*)
-                   (clatter.ansi:reset))
-                  ((> highlights 0)
-                   (clatter.ansi:emit-fg (clatter.ui.theme:theme-mention-indicator theme) *terminal-io*)
-                   (clatter.ansi:bold)
-                   (princ (subseq line 0 (min (length line) content-w)) *terminal-io*)
-                   (clatter.ansi:reset))
-                  ((> unread 0)
-                   (clatter.ansi:emit-fg (clatter.ui.theme:theme-unread-indicator theme) *terminal-io*)
-                   (princ (subseq line 0 (min (length line) content-w)) *terminal-io*)
-                   (clatter.ansi:reset))
-                  (t
-                   (princ (subseq line 0 (min (length line) content-w)) *terminal-io*)))
+                ;; Truncate or pad line to exactly content-w
+                (let* ((display-line (subseq line 0 (min (length line) content-w)))
+                       (padded-line (format nil "~va" content-w display-line)))
+                  ;; Style based on state
+                  (cond
+                    (current-p
+                     (clatter.ansi:inverse)
+                     (princ padded-line *terminal-io*)
+                     (clatter.ansi:reset))
+                    ((> highlights 0)
+                     (clatter.ansi:emit-fg (clatter.ui.theme:theme-mention-indicator theme) *terminal-io*)
+                     (clatter.ansi:bold)
+                     (princ padded-line *terminal-io*)
+                     (clatter.ansi:reset))
+                    ((> unread 0)
+                     (clatter.ansi:emit-fg (clatter.ui.theme:theme-unread-indicator theme) *terminal-io*)
+                     (princ padded-line *terminal-io*)
+                     (clatter.ansi:reset))
+                    (t
+                     (princ padded-line *terminal-io*)
+                     (clatter.ansi:reset))))
                 (incf row))))))
-      ;; Store visual order
+      ;; Store visual order (always update to keep in sync)
       (setf (clatter.core.model:app-buffer-order app) (nreverse visual-order)))))
 
 ;;; ============================================================

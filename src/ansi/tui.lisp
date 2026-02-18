@@ -56,10 +56,14 @@
     (return-from render-frame))
   
   (let ((dirty-flags (clatter.core.model:app-dirty-flags app)))
-    ;; Only recompute layout if layout flag is dirty
+    ;; Recompute layout if layout flag is dirty
     (when (member :layout dirty-flags)
       (let ((size (clatter.terminal:terminal-size)))
         (clatter.ui.layout:layout-compute *layout* (first size) (second size) app)))
+    
+    ;; Always update buffer references when chat/status is dirty
+    (when (or (member :chat dirty-flags) (member :status dirty-flags))
+      (clatter.ui.layout:layout-update-buffers *layout* app))
     
     ;; Render only dirty panels with synchronized update
     (clatter.ansi:begin-sync-update)
@@ -234,16 +238,61 @@
 ;;; Buffer Navigation
 ;;; ============================================================
 
+(defun compute-buffer-order (app)
+  "Compute visual buffer order (grouped by network, sorted by kind/title).
+   Returns list of buffer IDs in visual order."
+  (let* ((buffers (clatter.core.model:app-buffers app))
+         (networks (make-hash-table :test 'equal))
+         (network-order nil)
+         (visual-order nil))
+    ;; Group buffers by network
+    (loop for i from 0 below (length buffers)
+          for buf = (aref buffers i)
+          when buf
+          do (let ((net (or (clatter.core.model:buffer-network buf) "unknown")))
+               (unless (gethash net networks)
+                 (setf (gethash net networks) nil)
+                 (push (cons net i) network-order))
+               (push (cons i buf) (gethash net networks))))
+    ;; Sort networks by first appearance
+    (setf network-order (sort network-order #'< :key #'cdr))
+    ;; Build visual order
+    (dolist (net-pair network-order)
+      (let* ((net-name (car net-pair))
+             (buf-list (gethash net-name networks))
+             (sorted (sort (copy-list buf-list)
+                           (lambda (a b)
+                             (let ((ka (clatter.core.model:buffer-kind (cdr a)))
+                                   (kb (clatter.core.model:buffer-kind (cdr b))))
+                               (cond ((eq ka :server) t)
+                                     ((eq kb :server) nil)
+                                     (t (string< (clatter.core.model:buffer-title (cdr a))
+                                                 (clatter.core.model:buffer-title (cdr b))))))))))
+        (dolist (pair sorted)
+          (push (car pair) visual-order))))
+    (nreverse visual-order)))
+
+(defun ensure-buffer-order (app)
+  "Ensure app-buffer-order is populated."
+  (unless (clatter.core.model:app-buffer-order app)
+    (setf (clatter.core.model:app-buffer-order app) (compute-buffer-order app)))
+  (clatter.core.model:app-buffer-order app))
+
+(defun split-pane-secondary-p (ui)
+  "Return T if the secondary pane (right/bottom) is active."
+  (let ((split-mode (clatter.core.model:ui-split-mode ui))
+        (active-pane (clatter.core.model:ui-active-pane ui)))
+    (and split-mode
+         (or (and (eq split-mode :horizontal) (eq active-pane :right))
+             (and (eq split-mode :vertical) (eq active-pane :bottom))))))
+
 (defun switch-buffer (app direction)
   "Switch to next/previous buffer in visual order.
    In split mode, changes the active pane's buffer."
   (let* ((ui (clatter.core.model:app-ui app))
-         (order (clatter.core.model:app-buffer-order app))
-         (split-mode (clatter.core.model:ui-split-mode ui))
-         (active-pane (clatter.core.model:ui-active-pane ui))
+         (order (ensure-buffer-order app))
          ;; Determine which buffer ID to change based on active pane
-         (changing-split-pane (and split-mode 
-                                   (member active-pane '(:right :bottom))))
+         (changing-split-pane (split-pane-secondary-p ui))
          (current-id (if changing-split-pane
                          (clatter.core.model:ui-split-buffer-id ui)
                          (clatter.core.model:app-current-buffer-id app)))
@@ -329,9 +378,18 @@
   (let ((ui (clatter.core.model:app-ui app)))
     (when (clatter.core.model:ui-split-mode ui)
       (setf (clatter.core.model:ui-active-pane ui)
-            (if (member (clatter.core.model:ui-active-pane ui) '(:left :top))
-                :right
-                :left))
+            (cond
+              ;; Horizontal mode: toggle left/right
+              ((eq (clatter.core.model:ui-split-mode ui) :horizontal)
+               (if (member (clatter.core.model:ui-active-pane ui) '(:left :top nil))
+                   :right
+                   :left))
+              ;; Vertical mode: toggle top/bottom
+              ((eq (clatter.core.model:ui-split-mode ui) :vertical)
+               (if (member (clatter.core.model:ui-active-pane ui) '(:top :left nil))
+                   :bottom
+                   :top))
+              (t :left)))
       (clatter.core.model:mark-dirty app :chat :status))))
 
 ;;; ============================================================

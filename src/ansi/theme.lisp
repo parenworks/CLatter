@@ -31,13 +31,13 @@
    (action-color :initarg :action-color :accessor theme-action-color :initform nil)
    ;; Input prompt
    (input-prompt :initarg :input-prompt :accessor theme-input-prompt :initform "> ")
-   ;; Box drawing characters
+   ;; Box drawing characters (rounded corners for modern look)
    (box-h :initarg :box-h :accessor theme-box-h :initform #\─)
    (box-v :initarg :box-v :accessor theme-box-v :initform #\│)
-   (box-tl :initarg :box-tl :accessor theme-box-tl :initform #\┌)
-   (box-tr :initarg :box-tr :accessor theme-box-tr :initform #\┐)
-   (box-bl :initarg :box-bl :accessor theme-box-bl :initform #\└)
-   (box-br :initarg :box-br :accessor theme-box-br :initform #\┘)
+   (box-tl :initarg :box-tl :accessor theme-box-tl :initform #\╭)
+   (box-tr :initarg :box-tr :accessor theme-box-tr :initform #\╮)
+   (box-bl :initarg :box-bl :accessor theme-box-bl :initform #\╰)
+   (box-br :initarg :box-br :accessor theme-box-br :initform #\╯)
    (box-t-down :initarg :box-t-down :accessor theme-box-t-down :initform #\┬)
    (box-t-up :initarg :box-t-up :accessor theme-box-t-up :initform #\┴)
    (box-t-right :initarg :box-t-right :accessor theme-box-t-right :initform #\├)

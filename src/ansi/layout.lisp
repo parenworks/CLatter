@@ -180,20 +180,43 @@
 ;;; Layout Update Helpers
 ;;; ============================================================
 
+(defun split-pane-secondary-active-p (ui)
+  "Return T if the secondary pane (right/bottom) is active based on split orientation."
+  (let ((split-mode (clatter.core.model:ui-split-mode ui))
+        (active-pane (clatter.core.model:ui-active-pane ui)))
+    (and split-mode
+         (or (and (eq split-mode :horizontal) (eq active-pane :right))
+             (and (eq split-mode :vertical) (eq active-pane :bottom))))))
+
 (defun layout-update-buffers (layout app)
-  "Update buffer references in panels after buffer changes."
-  (when (layout-status layout)
-    (setf (clatter.ui.widgets:status-buffer (layout-status layout))
-          (clatter.core.model:current-buffer app)))
-  (when (layout-chat-a layout)
-    (setf (clatter.ui.widgets:chat-buffer (layout-chat-a layout))
-          (clatter.core.model:current-buffer app)))
-  (when (layout-nicklist layout)
-    (setf (clatter.ui.widgets:nicklist-buffer (layout-nicklist layout))
-          (clatter.core.model:active-buffer app)))
-  (let ((ui (clatter.core.model:app-ui app)))
+  "Update buffer references and active state in panels after buffer changes."
+  (let* ((ui (clatter.core.model:app-ui app))
+         (split-mode (clatter.core.model:ui-split-mode ui))
+         (secondary-active (split-pane-secondary-active-p ui))
+         (current-buf (clatter.core.model:current-buffer app)))
+    (when (layout-status layout)
+      (setf (clatter.ui.widgets:status-buffer (layout-status layout)) current-buf))
+    (when (layout-chat-a layout)
+      (setf (clatter.ui.widgets:chat-buffer (layout-chat-a layout)) current-buf)
+      ;; Update title to show buffer name
+      (when current-buf
+        (setf (clatter.ui.widgets:panel-title (layout-chat-a layout))
+              (format nil " ~a " (clatter.core.model:buffer-title current-buf))))
+      ;; Update active state - chat-a is active when primary pane is active or no split
+      (setf (clatter.ui.widgets:panel-active-p (layout-chat-a layout))
+            (or (null split-mode) (not secondary-active))))
+    (when (layout-nicklist layout)
+      (setf (clatter.ui.widgets:nicklist-buffer (layout-nicklist layout))
+            (clatter.core.model:active-buffer app)))
     (when (and (layout-chat-b layout) (clatter.core.model:ui-split-buffer-id ui))
       (let ((split-buf-id (clatter.core.model:ui-split-buffer-id ui)))
         (when (< split-buf-id (length (clatter.core.model:app-buffers app)))
-          (setf (clatter.ui.widgets:chat-buffer (layout-chat-b layout))
-                (aref (clatter.core.model:app-buffers app) split-buf-id)))))))
+          (let ((split-buf (aref (clatter.core.model:app-buffers app) split-buf-id)))
+            (setf (clatter.ui.widgets:chat-buffer (layout-chat-b layout)) split-buf)
+            ;; Update title to show buffer name
+            (when split-buf
+              (setf (clatter.ui.widgets:panel-title (layout-chat-b layout))
+                    (format nil " ~a " (clatter.core.model:buffer-title split-buf)))))
+          ;; Update active state - chat-b is active when secondary pane is active
+          (setf (clatter.ui.widgets:panel-active-p (layout-chat-b layout))
+                secondary-active))))))
