@@ -112,14 +112,14 @@
        (switch-buffer app 1)
        t)
       
-      ;; Ctrl+U - scroll up
+      ;; Ctrl+U - scroll up (show older messages)
       ((and ctrl-p (eql char #\u))
-       (scroll-buffer app 10)
+       (scroll-buffer app -10)
        t)
       
-      ;; Ctrl+D - scroll down
+      ;; Ctrl+D - scroll down (show newer messages)
       ((and ctrl-p (eql char #\d))
-       (scroll-buffer app -10)
+       (scroll-buffer app 10)
        t)
       
       ;; Ctrl+W - toggle split mode

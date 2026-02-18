@@ -49,17 +49,19 @@
   (if (panel-border-p panel) (- (panel-height panel) 2) (panel-height panel)))
 
 (defmethod panel-clear ((panel panel))
+  "Clear only the content area of the panel (not the border)."
   (when (panel-visible-p panel)
     (let ((theme (clatter.ui.theme:current-theme)))
       (when (clatter.ui.theme:theme-bg theme)
         (clatter.ansi:emit-bg (clatter.ui.theme:theme-bg theme) *terminal-io*))
-      (clatter.ansi:fill-rect (panel-x panel) (panel-y panel)
-                               (panel-width panel) (panel-height panel))
+      ;; Only clear content area to reduce flicker
+      (clatter.ansi:fill-rect (panel-content-x panel) (panel-content-y panel)
+                               (panel-content-width panel) (panel-content-height panel))
       (clatter.ansi:reset))))
 
 (defmethod panel-render :before ((panel panel))
   (when (panel-visible-p panel)
-    (panel-clear panel)
+    ;; Draw border first (doesn't flicker as much)
     (when (panel-border-p panel)
       (let* ((theme (clatter.ui.theme:current-theme))
              (border-color (if (panel-active-p panel)
@@ -79,7 +81,9 @@
         (when (panel-title panel)
           (clatter.ansi:cursor-to (panel-y panel) (+ (panel-x panel) 2))
           (princ (panel-title panel) *terminal-io*))
-        (clatter.ansi:reset)))))
+        (clatter.ansi:reset)))
+    ;; Clear content area after border
+    (panel-clear panel)))
 
 (defmethod panel-render ((panel panel))
   ;; Base implementation does nothing beyond border
