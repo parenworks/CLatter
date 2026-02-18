@@ -1,5 +1,6 @@
 # CLatter Makefile
 # Builds a standalone executable using SBCL
+# Pure ANSI version - no ncurses dependency
 
 SBCL := sbcl
 TARGET := clatter
@@ -17,7 +18,7 @@ run: $(TARGET)
 
 clean:
 	rm -f $(TARGET)
-	rm -rf ~/.cache/common-lisp/
+	rm -rf ~/.cache/common-lisp/sbcl-*//home/glenn/SourceCode/CLatter
 
 # Development: run without building executable
 dev:

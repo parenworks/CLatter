@@ -178,7 +178,7 @@
               (dcc-stream conn) stream
               (dcc-state conn) :active)
         ;; Create buffer for this chat
-        (de.anvi.croatoan:submit
+        (clatter.ui.tui:ui-submit
           (let ((buf (create-dcc-chat-buffer manager conn)))
             (setf (dcc-buffer conn) buf)
             (dcc-log-system manager "DCC CHAT with ~a established" (dcc-nick conn))))
@@ -197,7 +197,7 @@
         (loop while (eq (dcc-state conn) :active)
               for line = (read-line-from-binary-stream stream)
               while line
-              do (de.anvi.croatoan:submit
+              do (clatter.ui.tui:ui-submit
                    (deliver-dcc-chat-message manager conn line))))
     (end-of-file ()
       (dcc-log-system manager "DCC CHAT with ~a closed by remote" (dcc-nick conn)))
@@ -429,7 +429,7 @@
               (dcc-stream conn) (usocket:socket-stream socket)
               (dcc-state conn) :active)
         ;; Create buffer
-        (de.anvi.croatoan:submit
+        (clatter.ui.tui:ui-submit
           (let ((buf (create-dcc-chat-buffer manager conn)))
             (setf (dcc-buffer conn) buf)
             (dcc-log-system manager "DCC CHAT with ~a established" (dcc-nick conn))))
@@ -706,7 +706,7 @@
   (let* ((app (dcc-app manager))
          (buf (clatter.core.model:current-buffer app))
          (text (apply #'format nil format-string args)))
-    (de.anvi.croatoan:submit
+    (clatter.ui.tui:ui-submit
       (when buf
         (clatter.core.dispatch:deliver-message
          app buf
@@ -718,7 +718,7 @@
          (current-buf (clatter.core.model:current-buffer app))
          (text (apply #'format nil format-string args))
          (msg (clatter.core.model:make-message :level :system :text text :highlight t)))
-    (de.anvi.croatoan:submit
+    (clatter.ui.tui:ui-submit
       (when current-buf
         (clatter.core.dispatch:deliver-message app current-buf msg)
         (incf (clatter.core.model:buffer-highlight-count current-buf))

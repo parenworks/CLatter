@@ -43,7 +43,7 @@
    Events from IRC are received on background threads, so we use
    croatoan:submit to run the handler on the main event loop."
   (let ((app (irc-app conn)))
-    (de.anvi.croatoan:submit
+    (clatter.ui.tui:ui-submit
       (clatter.core.events:handle-event event app))))
 
 (defun irc-send (conn line)
@@ -234,7 +234,7 @@
   "Log error to server buffer for this connection's network."
   (let ((app (irc-app conn))
         (text (apply #'format nil format-string args)))
-    (de.anvi.croatoan:submit
+    (clatter.ui.tui:ui-submit
       (let ((buf (irc-find-server-buffer conn)))
         (when buf
           (clatter.core.dispatch:deliver-message
@@ -245,7 +245,7 @@
   "Log system message to server buffer for this connection's network."
   (let ((app (irc-app conn))
         (text (apply #'format nil format-string args)))
-    (de.anvi.croatoan:submit
+    (clatter.ui.tui:ui-submit
       (let ((buf (irc-find-server-buffer conn)))
         (when buf
           (clatter.core.dispatch:deliver-message
@@ -620,7 +620,7 @@
   (let* ((app (irc-app conn))
          (buf (irc-find-buffer conn channel)))
     (when buf
-      (de.anvi.croatoan:submit
+      (clatter.ui.tui:ui-submit
         (setf (clatter.core.model:buffer-channel-modes buf) modes)
         (clatter.core.model:mark-dirty app :status)))))
 
@@ -666,7 +666,7 @@
   "Deliver chathistory batch messages to the appropriate buffer."
   (let* ((app (irc-app conn))
          (target (getf batch :target)))
-    (de.anvi.croatoan:submit
+    (clatter.ui.tui:ui-submit
       (let ((buf (irc-find-or-create-buffer conn target)))
         (when buf
           (dolist (msg messages)
@@ -729,7 +729,7 @@
               (when (and has-prefix (string-equal nick my-nick))
                 (setf found-my-mode (string first-char)))))))
       ;; Now submit UI updates
-      (de.anvi.croatoan:submit
+      (clatter.ui.tui:ui-submit
         ;; Re-parse and add members
         (dolist (name (uiop:split-string names-str :separator " "))
           (when (> (length name) 0)
@@ -746,6 +746,8 @@
                   (concatenate 'string (clatter.core.model:buffer-my-modes buf) found-my-mode))))
         (clatter.core.model:mark-dirty app :status)))))
 
+(defvar *buffer-creation-lock* (bordeaux-threads:make-lock "buffer-creation"))
+
 (defun irc-find-buffer (conn target)
   "Find buffer for target (channel or nick) on this connection's network."
   (let* ((app (irc-app conn))
@@ -759,25 +761,34 @@
             return buf)))
 
 (defun irc-find-or-create-buffer (conn target)
-  "Find or create buffer for target."
-  (or (irc-find-buffer conn target)
-      (irc-create-channel-buffer conn target)))
+  "Find or create buffer for target. Thread-safe."
+  (bordeaux-threads:with-lock-held (*buffer-creation-lock*)
+    (or (irc-find-buffer conn target)
+        (irc-create-channel-buffer-internal conn target))))
 
-(defun irc-create-channel-buffer (conn channel)
-  "Create a new buffer for a channel."
+(defun irc-create-channel-buffer-internal (conn channel)
+  "Create a new buffer for a channel. Must be called with *buffer-creation-lock* held."
   (let* ((app (irc-app conn))
          (kind (if (char= (char channel 0) #\#) :channel :query))
          (network-name (clatter.core.config:network-config-name (irc-network-config conn)))
-         (buf (clatter.core.model:make-buffer :id -1 :kind kind :title channel :network network-name)))  ;; ID set in submit
-    (de.anvi.croatoan:submit
-      (let ((buffers (clatter.core.model:app-buffers app)))
-        (setf (clatter.core.model:buffer-id buf) (length buffers))
-        (vector-push-extend buf buffers)
-        (clatter.core.model:mark-dirty app :buflist)))
+         (buffers (clatter.core.model:app-buffers app))
+         (buf (clatter.core.model:make-buffer :id (length buffers) :kind kind :title channel :network network-name)))
+    ;; Add buffer directly
+    (vector-push-extend buf buffers)
+    ;; Mark dirty via ui-submit for thread safety on UI state
+    (clatter.ui.tui:ui-submit
+      (clatter.core.model:mark-dirty app :buflist))
     ;; Request channel modes for channels
     (when (and (> (length channel) 0) (char= (char channel 0) #\#))
       (irc-send conn (format nil "MODE ~a" channel)))
     buf))
+
+(defun irc-create-channel-buffer (conn channel)
+  "Create a new buffer for a channel. Thread-safe wrapper."
+  (bordeaux-threads:with-lock-held (*buffer-creation-lock*)
+    ;; Check if buffer already exists first
+    (or (irc-find-buffer conn channel)
+        (irc-create-channel-buffer-internal conn channel))))
 
 (defun irc-read-loop (conn)
   "Main read loop for IRC connection."
@@ -834,9 +845,9 @@
          (conn (make-irc-connection app network-id network-config)))
     ;; Register connection in app
     (setf (gethash network-name (clatter.core.model:app-connections app)) conn)
-    ;; Create server buffer for this network
-    (de.anvi.croatoan:submit
-      (clatter.core.model:create-server-buffer app network-name))
+    ;; Create server buffer for this network (directly, not via ui-submit,
+    ;; since this may be called before TUI starts)
+    (clatter.core.model:create-server-buffer app network-name)
     (setf (irc-thread conn)
           (bordeaux-threads:make-thread
            (lambda ()

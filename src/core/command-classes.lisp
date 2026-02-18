@@ -49,7 +49,7 @@
 ;;; Helper to deliver a message to current buffer
 (defun cmd-message (app text &key (level :system) (nick "*"))
   "Deliver a system message to the current buffer."
-  (de.anvi.croatoan:submit
+  (clatter.ui.tui:ui-submit
     (clatter.core.dispatch:deliver-message
      app (clatter.core.model:current-buffer app)
      (clatter.core.model:make-message :level level :nick nick :text text))))
@@ -132,7 +132,7 @@
             (progn
               (clatter.net.irc:irc-send conn (clatter.core.protocol:irc-privmsg target text))
               (let ((buf (clatter.net.irc::irc-find-or-create-buffer conn target)))
-                (de.anvi.croatoan:submit
+                (clatter.ui.tui:ui-submit
                   (clatter.core.dispatch:deliver-message
                    app buf
                    (clatter.core.model:make-message :level :chat
@@ -159,7 +159,7 @@
       (t
        (let ((action-text (format nil "~CACTION ~a~C" (code-char 1) args (code-char 1))))
          (clatter.net.irc:irc-send conn (clatter.core.protocol:irc-privmsg target action-text))
-         (de.anvi.croatoan:submit
+         (clatter.ui.tui:ui-submit
            (clatter.core.dispatch:deliver-message
             app buf
             (clatter.core.model:make-message :level :chat
@@ -243,7 +243,7 @@
         (declare (ignore rest))
         (let ((buf (clatter.net.irc::irc-find-or-create-buffer conn nick)))
           (if buf
-              (de.anvi.croatoan:submit
+              (clatter.ui.tui:ui-submit
                 (setf (clatter.core.model:app-current-buffer-id app)
                       (clatter.core.model:buffer-id buf))
                 (clatter.core.model:mark-dirty app :buflist :chat :status)
@@ -386,7 +386,7 @@
     ;; Sort by name
     (setf commands (sort commands #'string< :key #'command-name))
     ;; Display
-    (de.anvi.croatoan:submit
+    (clatter.ui.tui:ui-submit
       (clatter.core.dispatch:deliver-message
        app buf
        (clatter.core.model:make-message :level :system :nick "*help*" :text "CLatter Commands:"))
@@ -931,16 +931,16 @@
   (declare (ignore conn))
   (if (or (null args) (zerop (length args)))
       ;; List available themes
-      (let ((themes (clatter.ui.render:list-themes)))
+      (let ((themes (clatter.ui.theme:list-themes)))
         (cmd-message app (format nil "Available themes: ~{~a~^, ~}" 
                                 (mapcar #'string-downcase themes)))
         (cmd-message app (format nil "Current theme: ~a" 
-                                (type-of (clatter.ui.render:current-theme)))))
+                                (type-of (clatter.ui.theme:current-theme)))))
       ;; Switch theme
-      (let ((theme-class (clatter.ui.render:find-theme args)))
+      (let ((theme-class (clatter.ui.theme:find-theme args)))
         (if theme-class
             (progn
-              (clatter.ui.render:set-theme theme-class)
+              (clatter.ui.theme:set-theme theme-class)
               (clatter.core.model:mark-dirty app :layout :chat :buflist :status :input)
               (cmd-message app (format nil "Theme switched to: ~a" args)))
             (cmd-error app (format nil "Unknown theme: ~a. Use /theme to list available themes." args)))))

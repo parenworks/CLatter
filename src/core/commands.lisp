@@ -69,7 +69,7 @@
                                    (pathname (second parts))
                                    default-path))
                   (count (clatter.core.logging:export-logs network target format-key output-path)))
-             (de.anvi.croatoan:submit
+             (clatter.ui.tui:ui-submit
                (clatter.core.dispatch:deliver-message
                 app buf
                 (clatter.core.model:make-message 
@@ -77,7 +77,7 @@
                  :text (if count
                            (format nil "Exported ~d lines to ~a" count (namestring output-path))
                            "No logs to export")))))
-           (de.anvi.croatoan:submit
+           (clatter.ui.tui:ui-submit
              (clatter.core.dispatch:deliver-message
               app buf
               (clatter.core.model:make-message :level :error :nick "*"
@@ -86,7 +86,7 @@
       ((and (> (length args) 0)
             (string-equal (string-upcase (subseq args 0 (min 4 (length args)))) "LIST"))
        (let ((targets (clatter.core.logging:list-logged-targets network)))
-         (de.anvi.croatoan:submit
+         (clatter.ui.tui:ui-submit
            (clatter.core.dispatch:deliver-message
             app buf
             (clatter.core.model:make-message :level :system :nick "*log*"
@@ -99,7 +99,7 @@
        (let ((pattern (string-trim " " (subseq args 6))))
          (if (and (member kind '(:channel :query)) (> (length pattern) 0))
              (let ((results (clatter.core.logging:search-logs network target pattern)))
-               (de.anvi.croatoan:submit
+               (clatter.ui.tui:ui-submit
                  (if results
                      (progn
                        (clatter.core.dispatch:deliver-message
@@ -116,7 +116,7 @@
                       app buf
                       (clatter.core.model:make-message :level :system :nick "*log*"
                                                        :text (format nil "No matches for '~a'" pattern))))))
-             (de.anvi.croatoan:submit
+             (clatter.ui.tui:ui-submit
                (clatter.core.dispatch:deliver-message
                 app buf
                 (clatter.core.model:make-message :level :error :nick "*"
@@ -124,7 +124,7 @@
       ;; /log - show recent logs for current buffer
       ((member kind '(:channel :query))
        (let ((lines (clatter.core.logging:read-recent-logs network target 50)))
-         (de.anvi.croatoan:submit
+         (clatter.ui.tui:ui-submit
            (if lines
                (progn
                  (clatter.core.dispatch:deliver-message
@@ -145,7 +145,7 @@
                                                  :text (format nil "No logs found for ~a" target)))))))
       ;; Not in a channel/query buffer
       (t
-       (de.anvi.croatoan:submit
+       (clatter.ui.tui:ui-submit
          (clatter.core.dispatch:deliver-message
           app buf
           (clatter.core.model:make-message :level :error :nick "*"
@@ -159,7 +159,7 @@
     (if (or (null args) (= (length (string-trim " " args)) 0))
         ;; List ignored nicks
         (let ((ignored (clatter.core.model:list-ignored app)))
-          (de.anvi.croatoan:submit
+          (clatter.ui.tui:ui-submit
             (clatter.core.dispatch:deliver-message
              app buf
              (clatter.core.model:make-message 
@@ -172,14 +172,14 @@
           (if (clatter.core.model:ignored-p app nick)
               (progn
                 (clatter.core.model:unignore-nick app nick)
-                (de.anvi.croatoan:submit
+                (clatter.ui.tui:ui-submit
                   (clatter.core.dispatch:deliver-message
                    app buf
                    (clatter.core.model:make-message :level :system :nick "*"
                                                     :text (format nil "Unignored: ~a" nick)))))
               (progn
                 (clatter.core.model:ignore-nick app nick)
-                (de.anvi.croatoan:submit
+                (clatter.ui.tui:ui-submit
                   (clatter.core.dispatch:deliver-message
                    app buf
                    (clatter.core.model:make-message :level :system :nick "*"
@@ -194,7 +194,7 @@
           (setf (clatter.core.config:network-config-autojoin net-cfg)
                 (append autojoin (list channel)))
           (clatter.core.config:save-config *current-config*)
-          (de.anvi.croatoan:submit
+          (clatter.ui.tui:ui-submit
             (clatter.core.dispatch:deliver-message
              app (clatter.core.model:current-buffer app)
              (clatter.core.model:make-message :level :system :nick "*"
@@ -210,12 +210,12 @@
               (setf (clatter.core.config:network-config-autojoin net-cfg)
                     (remove channel autojoin :test #'string-equal))
               (clatter.core.config:save-config *current-config*)
-              (de.anvi.croatoan:submit
+              (clatter.ui.tui:ui-submit
                 (clatter.core.dispatch:deliver-message
                  app (clatter.core.model:current-buffer app)
                  (clatter.core.model:make-message :level :system :nick "*"
                                                   :text (format nil "Removed ~a from autojoin" channel)))))
-            (de.anvi.croatoan:submit
+            (clatter.ui.tui:ui-submit
               (clatter.core.dispatch:deliver-message
                app (clatter.core.model:current-buffer app)
                (clatter.core.model:make-message :level :error :nick "*"
@@ -224,7 +224,7 @@
 (defun list-autojoin (app)
   "List all channels in the autojoin list."
   (let ((net-cfg (get-current-network-config app)))
-    (de.anvi.croatoan:submit
+    (clatter.ui.tui:ui-submit
       (if net-cfg
           (let ((autojoin (clatter.core.config:network-config-autojoin net-cfg)))
             (clatter.core.dispatch:deliver-message
@@ -252,7 +252,7 @@
                  (multiple-value-bind (channel ignored) (split-first-word rest)
                    (declare (ignore ignored))
                    (add-to-autojoin app channel))
-                 (de.anvi.croatoan:submit
+                 (clatter.ui.tui:ui-submit
                    (clatter.core.dispatch:deliver-message
                     app (clatter.core.model:current-buffer app)
                     (clatter.core.model:make-message :level :error :nick "*"
@@ -262,13 +262,13 @@
                  (multiple-value-bind (channel ignored) (split-first-word rest)
                    (declare (ignore ignored))
                    (remove-from-autojoin app channel))
-                 (de.anvi.croatoan:submit
+                 (clatter.ui.tui:ui-submit
                    (clatter.core.dispatch:deliver-message
                     app (clatter.core.model:current-buffer app)
                     (clatter.core.model:make-message :level :error :nick "*"
                                                      :text "Usage: /autojoin remove #channel")))))
             (t
-             (de.anvi.croatoan:submit
+             (clatter.ui.tui:ui-submit
                (clatter.core.dispatch:deliver-message
                 app (clatter.core.model:current-buffer app)
                 (clatter.core.model:make-message :level :error :nick "*"
@@ -281,7 +281,7 @@
   "Handle /crafterbin <file> - upload file to crafterbin and copy URL to clipboard."
   (let ((buf (clatter.core.model:current-buffer app)))
     (if (= (length args) 0)
-        (de.anvi.croatoan:submit
+        (clatter.ui.tui:ui-submit
           (clatter.core.dispatch:deliver-message
            app buf
            (clatter.core.model:make-message :level :error :nick "*"
@@ -290,20 +290,20 @@
         (let ((filepath (uiop:native-namestring (uiop:parse-native-namestring args))))
           (cond
             ((not (probe-file filepath))
-             (de.anvi.croatoan:submit
+             (clatter.ui.tui:ui-submit
                (clatter.core.dispatch:deliver-message
                 app buf
                 (clatter.core.model:make-message :level :error :nick "*"
                                                  :text (format nil "File not found: ~a" filepath)))))
             ((not (zerop (nth-value 2 (uiop:run-program "which curl" :output nil :ignore-error-status t))))
-             (de.anvi.croatoan:submit
+             (clatter.ui.tui:ui-submit
                (clatter.core.dispatch:deliver-message
                 app buf
                 (clatter.core.model:make-message :level :error :nick "*"
                                                  :text "curl not found in PATH"))))
             (t
              ;; Run curl in background thread
-             (de.anvi.croatoan:submit
+             (clatter.ui.tui:ui-submit
                (clatter.core.dispatch:deliver-message
                 app buf
                 (clatter.core.model:make-message :level :system :nick "*crafterbin*"
@@ -345,25 +345,25 @@
                                                             :input (make-string-input-stream url)
                                                             :output nil
                                                             :ignore-error-status t)))))))
-                      (de.anvi.croatoan:submit
+                      (clatter.ui.tui:ui-submit
                         (clatter.core.dispatch:deliver-message
                          app buf
                          (clatter.core.model:make-message :level :system :nick "*crafterbin*"
                                                           :text (if copied
                                                                     (format nil "Uploaded: ~a (copied to clipboard)" url)
                                                                     (format nil "Uploaded: ~a" url)))))))
-                  (de.anvi.croatoan:submit
+                  (clatter.ui.tui:ui-submit
                     (clatter.core.dispatch:deliver-message
                      app buf
                      (clatter.core.model:make-message :level :error :nick "*crafterbin*"
                                                       :text (format nil "Unexpected response: ~a" output))))))
-            (de.anvi.croatoan:submit
+            (clatter.ui.tui:ui-submit
               (clatter.core.dispatch:deliver-message
                app buf
                (clatter.core.model:make-message :level :error :nick "*crafterbin*"
                                                 :text (format nil "Upload failed (exit ~a)" exit-code))))))
     (error (e)
-      (de.anvi.croatoan:submit
+      (clatter.ui.tui:ui-submit
         (clatter.core.dispatch:deliver-message
          app buf
          (clatter.core.model:make-message :level :error :nick "*crafterbin*"
@@ -379,7 +379,7 @@
    /dcc close [id] - close DCC connection"
   (let ((manager clatter.net.dcc:*dcc-manager*))
     (unless manager
-      (de.anvi.croatoan:submit
+      (clatter.ui.tui:ui-submit
         (clatter.core.dispatch:deliver-message
          app (clatter.core.model:current-buffer app)
          (clatter.core.model:make-message :level :error :text "DCC not initialized")))
@@ -432,7 +432,7 @@
 
 (defun dcc-show-usage (app text)
   "Show DCC usage message."
-  (de.anvi.croatoan:submit
+  (clatter.ui.tui:ui-submit
     (clatter.core.dispatch:deliver-message
      app (clatter.core.model:current-buffer app)
      (clatter.core.model:make-message :level :system :text text))))
@@ -440,7 +440,7 @@
 (defun dcc-show-list (app manager)
   "Show list of DCC connections."
   (let ((connections (clatter.net.dcc:dcc-manager-list manager)))
-    (de.anvi.croatoan:submit
+    (clatter.ui.tui:ui-submit
       (let ((buf (clatter.core.model:current-buffer app)))
         (if connections
             (progn
@@ -500,7 +500,7 @@
         (progn
           (clatter.net.dcc:dcc-close conn)
           (clatter.net.dcc:dcc-manager-remove manager id)
-          (de.anvi.croatoan:submit
+          (clatter.ui.tui:ui-submit
             (clatter.core.dispatch:deliver-message
              app (clatter.core.model:current-buffer app)
              (clatter.core.model:make-message :level :system 
@@ -518,7 +518,7 @@
               (args (cdr parsed)))
           (unless (execute-command app conn cmd args)
             ;; Unknown command - show error
-            (de.anvi.croatoan:submit
+            (clatter.ui.tui:ui-submit
               (clatter.core.dispatch:deliver-message
                app (clatter.core.model:current-buffer app)
                (clatter.core.model:make-message :level :error :nick "*"
@@ -532,7 +532,7 @@
             ((and buf conn (member kind '(:channel :query)) (> (length target) 0))
              (clatter.net.irc:irc-send conn (clatter.core.protocol:irc-privmsg target line))
              ;; Echo locally
-             (de.anvi.croatoan:submit
+             (clatter.ui.tui:ui-submit
                (clatter.core.dispatch:deliver-message
                 app buf
                 (clatter.core.model:make-message :level :chat
@@ -552,20 +552,20 @@
           (if (clatter.net.dcc:dcc-chat-send dcc-conn line)
               ;; Echo locally with our nick
               (let ((my-nick (if conn (clatter.net.irc:irc-nick conn) "me")))
-                (de.anvi.croatoan:submit
+                (clatter.ui.tui:ui-submit
                   (clatter.core.dispatch:deliver-message
                    app buf
                    (clatter.core.model:make-message :level :chat
                                                     :nick my-nick
                                                     :text line))))
               ;; Send failed
-              (de.anvi.croatoan:submit
+              (clatter.ui.tui:ui-submit
                 (clatter.core.dispatch:deliver-message
                  app buf
                  (clatter.core.model:make-message :level :error
                                                   :text "DCC send failed - connection may be closed"))))))
     (error (e)
-      (de.anvi.croatoan:submit
+      (clatter.ui.tui:ui-submit
         (clatter.core.dispatch:deliver-message
          app buf
          (clatter.core.model:make-message :level :error

@@ -1,50 +1,97 @@
+(in-package #:cl-user)
+
+;;; ============================================================
+;;; CLatter Package Definitions - ANSI Version
+;;; ============================================================
+
 (defpackage #:clatter
   (:use #:cl)
   (:export #:main))
 
+;;; ============================================================
+;;; ANSI Terminal Package
+;;; ============================================================
+
+(defpackage #:clatter.ansi
+  (:use #:cl)
+  (:export
+   #:*escape*
+   #:color #:indexed-color #:rgb-color #:named-color
+   #:make-indexed-color #:make-rgb-color #:make-named-color
+   #:color-index #:color-red #:color-green #:color-blue #:color-name
+   #:*color-palette* #:register-color #:lookup-color
+   #:emit-fg #:emit-bg
+   #:text-style #:make-style
+   #:style-fg #:style-bg #:style-bold-p #:style-dim-p
+   #:style-italic-p #:style-underline-p #:style-inverse-p
+   #:emit-style
+   #:cursor-to #:cursor-home #:cursor-hide #:cursor-show
+   #:cursor-up #:cursor-down #:cursor-forward #:cursor-back
+   #:clear-screen #:clear-line #:clear-to-eol #:reset
+   #:begin-sync-update #:end-sync-update
+   #:enter-alternate-screen #:leave-alternate-screen
+   #:fg #:bg #:fg-rgb #:bg-rgb
+   #:bold #:dim #:italic #:underline #:inverse
+   #:write-at #:write-styled #:with-style
+   #:draw-box #:fill-rect))
+
+;;; ============================================================
+;;; Terminal Input Package
+;;; ============================================================
+
+(defpackage #:clatter.terminal
+  (:use #:cl)
+  (:export
+   #:key-event #:make-key-event
+   #:key-event-char #:key-event-code #:key-event-ctrl-p #:key-event-alt-p
+   #:key-event-mouse-x #:key-event-mouse-y
+   #:+key-up+ #:+key-down+ #:+key-left+ #:+key-right+
+   #:+key-enter+ #:+key-escape+ #:+key-tab+ #:+key-backspace+
+   #:+key-delete+ #:+key-home+ #:+key-end+
+   #:+key-page-up+ #:+key-page-down+ #:+key-mouse+ #:+key-resize+
+   #:terminal-mode #:*terminal-mode*
+   #:enable-raw-mode #:disable-raw-mode #:query-size
+   #:terminal-raw-p #:terminal-width #:terminal-height
+   #:terminal-size #:with-raw-terminal
+   #:enable-mouse-tracking #:disable-mouse-tracking
+   #:input-reader #:*input-reader*
+   #:reader-open #:reader-close #:read-key-event
+   #:read-key #:read-key-with-timeout
+   #:close-tty-stream))
+
+;;; ============================================================
+;;; Core Packages (unchanged from original)
+;;; ============================================================
+
 (defpackage #:clatter.core.constants
   (:use #:cl)
   (:export
-   ;; Buffer & UI
    #:+default-scrollback-capacity+ #:+default-buflist-width+ #:+default-nicklist-width+
    #:+max-recent-urls+
-   ;; Connection & Timing
    #:+health-check-interval+ #:+typing-throttle-seconds+
    #:+ping-timeout-seconds+ #:+pong-timeout-seconds+
    #:+reconnect-min-delay+ #:+reconnect-max-delay+
-   ;; IRC Protocol
    #:+irc-max-line-length+ #:+irc-safe-message-length+ #:+irc-max-channel-length+
-   ;; DCC
    #:+dcc-port-range-start+ #:+dcc-port-range-end+ #:+dcc-timeout-seconds+ #:+dcc-buffer-size+
-   ;; IRC Numerics
    #:+rpl-welcome+ #:+rpl-yourhost+ #:+rpl-created+ #:+rpl-myinfo+ #:+rpl-isupport+
    #:+rpl-namreply+ #:+rpl-endofnames+ #:+rpl-topic+ #:+rpl-topicwhotime+
    #:+rpl-motd+ #:+rpl-motdstart+ #:+rpl-endofmotd+
    #:+rpl-whoisuser+ #:+rpl-whoisserver+ #:+rpl-whoisoperator+ #:+rpl-whoisidle+
    #:+rpl-endofwhois+ #:+rpl-whoischannels+ #:+rpl-whoisaccount+
    #:+err-nicknameinuse+
-   ;; External Services
    #:+crafterbin-url+
-   ;; IRCv3
    #:+wanted-capabilities+))
 
 (defpackage #:clatter.core.debug
   (:use #:cl)
   (:export
-   ;; Level constants
    #:+level-off+ #:+level-error+ #:+level-warn+ #:+level-info+ #:+level-debug+ #:+level-trace+
-   ;; State
    #:*debug-level* #:level-name
-   ;; Configuration
    #:set-debug-level #:debug-status
-   ;; Category management
    #:enable-debug-category #:disable-debug-category #:debug-category-enabled-p 
    #:list-debug-categories #:clear-debug-categories
-   ;; File logging
    #:open-debug-file #:close-debug-file
-   ;; Core logging
    #:debug-log #:log-error #:log-warn #:log-info #:log-debug #:log-trace
-   ;; Protocol logging
    #:log-irc-raw #:log-irc-event))
 
 (defpackage #:clatter.core.ring
@@ -100,14 +147,10 @@
    #:parse-irc-line #:format-irc-line
    #:parse-irc-tags #:get-server-time #:parse-iso8601-time
    #:parse-prefix #:prefix-nick #:strip-irc-formatting
-   ;; Input sanitization
    #:sanitize-irc-input #:validate-irc-input
-   ;; Channel validation
    #:channel-prefix-p #:channel-name-p #:valid-channel-name-p
-   ;; Message length
    #:+irc-max-line-length+ #:+irc-safe-message-length+
    #:message-overhead #:max-message-length #:split-long-message
-   ;; IRC commands
    #:irc-nick #:irc-user #:irc-pass #:irc-join #:irc-part
    #:irc-privmsg #:irc-notice #:irc-quit #:irc-pong #:irc-ping #:irc-cap
    #:irc-whois #:irc-topic #:irc-kick #:irc-mode #:irc-away #:irc-ctcp-reply
@@ -128,16 +171,12 @@
 (defpackage #:clatter.core.events
   (:use #:cl)
   (:export
-   ;; Base class and generic function
    #:irc-event #:handle-event
    #:event-connection #:event-timestamp #:event-raw-message
-   ;; Connection events
    #:connect-event #:event-server #:event-nick
    #:disconnect-event #:event-reason
-   ;; Message events
    #:message-event #:event-sender #:event-target #:event-text #:event-server-time
    #:privmsg-event #:notice-event #:action-event
-   ;; Channel events
    #:channel-event #:event-channel
    #:join-event #:event-account #:event-realname
    #:part-event #:event-message
@@ -146,17 +185,12 @@
    #:nick-event #:event-old-nick #:event-new-nick
    #:topic-event #:event-topic
    #:mode-event #:event-setter #:event-modes
-   ;; Presence events
    #:away-event
-   ;; CTCP events
    #:ctcp-event #:event-command #:event-args
    #:dcc-offer-event #:event-dcc-type #:event-filename #:event-ip #:event-port #:event-filesize
-   ;; Server events
    #:names-event #:event-names
    #:numeric-event #:event-numeric #:event-params
-   ;; Typing events
    #:typing-event #:event-state
-   ;; Legacy compatibility
    #:ev #:ev-type #:ev-plist))
 
 (defpackage #:clatter.core.logging
@@ -178,6 +212,51 @@
   (:import-from #:clatter.core.ring #:ring-push)
   (:export #:apply-event #:deliver-message))
 
+;;; ============================================================
+;;; UI Packages - ANSI Version
+;;; ============================================================
+
+(defpackage #:clatter.ui.theme
+  (:use #:cl)
+  (:export
+   #:base-theme #:tokyo-night-theme #:dark-theme #:light-theme #:ascii-theme #:rounded-theme
+   #:theme-nick-colors #:theme-bg #:theme-fg
+   #:theme-border-active #:theme-border-inactive
+   #:theme-unread-indicator #:theme-mention-indicator #:theme-timestamp
+   #:theme-join-color #:theme-part-color #:theme-error-color #:theme-system-color
+   #:theme-presence-color #:theme-action-color
+   #:theme-input-prompt
+   #:theme-box-h #:theme-box-v #:theme-box-tl #:theme-box-tr #:theme-box-bl #:theme-box-br
+   #:theme-box-t-down #:theme-box-t-up #:theme-box-t-right #:theme-box-t-left #:theme-box-cross
+   #:theme-connected-indicator #:theme-connecting-indicator #:theme-disconnected-indicator
+   #:theme-tls-indicator #:theme-scroll-indicator #:theme-filter-indicator
+   #:theme-level-color #:theme-nick-color
+   #:*theme-registry* #:*current-theme*
+   #:register-theme #:find-theme #:list-themes #:current-theme #:set-theme))
+
+(defpackage #:clatter.ui.widgets
+  (:use #:cl)
+  (:export
+   #:panel #:panel-x #:panel-y #:panel-width #:panel-height
+   #:panel-visible-p #:panel-border-p #:panel-title #:panel-active-p
+   #:panel-render #:panel-clear
+   #:panel-content-x #:panel-content-y #:panel-content-width #:panel-content-height
+   #:buflist-panel #:buflist-app
+   #:chat-panel #:chat-buffer #:chat-time-format
+   #:nicklist-panel #:nicklist-buffer
+   #:status-panel #:status-app #:status-buffer
+   #:input-panel #:input-panel-state))
+
+(defpackage #:clatter.ui.layout
+  (:use #:cl)
+  (:export
+   #:layout #:make-layout
+   #:layout-buflist-width #:layout-nicklist-width #:layout-nicklist-visible
+   #:layout-split-mode #:layout-term-width #:layout-term-height
+   #:layout-buflist #:layout-chat-a #:layout-chat-b #:layout-nicklist
+   #:layout-status #:layout-input
+   #:layout-compute #:layout-render #:layout-update-buffers))
+
 (defpackage #:clatter.ui.input
   (:use #:cl)
   (:import-from #:clatter.core.model
@@ -192,53 +271,18 @@
 
 (defpackage #:clatter.ui.render
   (:use #:cl)
-  (:import-from #:clatter.core.model
-                #:app #:app-ui #:app-buffers #:app-current-buffer-id #:app-buffer-order #:app-connections
-                #:buffer #:buffer-title #:buffer-kind #:buffer-network #:buffer-unread-count #:buffer-highlight-count
-                #:buffer-channel-modes #:buffer-my-modes #:buffer-members
-                #:buffer-filter-pattern #:buffer-filter-active
-                #:current-buffer #:buffer-scrollback #:buffer-scroll-offset
-                #:input-text #:input-cursor
-                #:dirty-p #:clear-dirty
-                #:ui-win-buflist #:ui-win-chat #:ui-win-chat2 #:ui-win-nicklist #:ui-win-status #:ui-win-input #:ui-input
-                #:ui-split-mode #:ui-split-buffer-id #:ui-active-pane
-                #:ui-nicklist-w #:ui-nicklist-visible)
-  (:import-from #:clatter.core.ring #:ring->list)
-  (:export #:render-frame
-           ;; Theme system
-           #:*current-theme* #:current-theme #:set-theme
-           #:find-theme #:list-themes #:register-theme
-           #:base-theme #:dark-theme #:light-theme #:solarized-dark-theme
-           #:minimal-theme #:ascii-theme #:rounded-theme))
-
-(defpackage #:clatter.ui.keymap
-  (:use #:cl)
-  (:import-from #:clatter.core.model
-                #:app #:app-ui #:mark-dirty #:current-buffer
-                #:app-buffers #:app-current-buffer-id #:buffer-scroll-offset #:dirty-p
-                #:app-quit-requested #:ui-screen
-                #:ui-split-mode #:ui-split-buffer-id #:ui-active-pane
-                #:ui-nicklist-visible
-                #:buffer-unread-count #:buffer-highlight-count
-                #:buffer-kind #:buffer-title)
-  (:import-from #:clatter.ui.input
-                #:input-insert-char #:input-backspace #:input-delete
-                #:input-move-left #:input-move-right #:input-move-home #:input-move-end
-                #:input-history-prev #:input-history-next
-                #:input-submit-line #:input-tab-complete)
-  (:import-from #:clatter.ui.render #:render-frame)
-  (:export #:install-keybindings))
+  (:export #:render-frame))
 
 (defpackage #:clatter.ui.tui
   (:use #:cl)
-  (:import-from #:clatter.core.model #:app #:app-ui #:make-ui-state #:make-input-state
-                #:mark-dirty #:ui-screen #:ui-win-buflist #:ui-win-chat #:ui-win-chat2 #:ui-win-nicklist
-                #:ui-win-status #:ui-win-input #:ui-term-w #:ui-term-h #:ui-buflist-w
-                #:ui-split-mode #:ui-split-buffer-id #:ui-active-pane
-                #:ui-nicklist-w #:ui-nicklist-visible)
-  (:import-from #:clatter.ui.render #:render-frame)
-  (:import-from #:clatter.ui.keymap #:install-keybindings)
-  (:export #:run-tui #:create-layout-windows))
+  (:export 
+   #:run-tui 
+   #:ui-submit
+   #:*layout* #:*running*))
+
+;;; ============================================================
+;;; Network Packages
+;;; ============================================================
 
 (defpackage #:clatter.net.irc
   (:use #:cl)
@@ -258,25 +302,18 @@
 (defpackage #:clatter.net.dcc
   (:use #:cl)
   (:export
-   ;; Manager
    #:dcc-manager #:make-dcc-manager #:*dcc-manager*
    #:dcc-manager-add #:dcc-manager-remove #:dcc-manager-find
    #:dcc-manager-list #:dcc-manager-pending #:dcc-manager-connections
-   ;; Connection classes
    #:dcc-connection #:dcc-chat #:dcc-send
-   ;; Accessors
    #:dcc-id #:dcc-nick #:dcc-state #:dcc-direction #:dcc-buffer
    #:dcc-filename #:dcc-filesize #:dcc-bytes-transferred
    #:dcc-type-string #:dcc-status-string
-   ;; Operations
    #:dcc-accept #:dcc-reject #:dcc-close
    #:dcc-chat-send
    #:find-dcc-connection-for-buffer
-   ;; Initiating connections
    #:dcc-initiate-chat #:dcc-initiate-send
-   ;; Handling offers
    #:dcc-handle-offer
-   ;; Utilities
    #:ip-integer-to-string #:ip-string-to-integer
    #:get-local-ip #:set-dcc-ip))
 
