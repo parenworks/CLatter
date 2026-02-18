@@ -158,7 +158,8 @@
   (:documentation "Render all panels in the layout"))
 
 (defmethod layout-render ((layout layout))
-  "Render all panels with synchronized update."
+  "Render all panels with synchronized update.
+   Note: For selective rendering, call panel-render directly from tui.lisp."
   (clatter.ansi:begin-sync-update)
   (when (layout-buflist layout) 
     (clatter.ui.widgets:panel-render (layout-buflist layout)))

@@ -55,12 +55,28 @@
   (unless (clatter.core.model:dirty-p app)
     (return-from render-frame))
   
-  ;; Update layout with current terminal size
-  (let ((size (clatter.terminal:terminal-size)))
-    (clatter.ui.layout:layout-compute *layout* (first size) (second size) app))
-  
-  ;; Render all panels
-  (clatter.ui.layout:layout-render *layout*)
+  (let ((dirty-flags (clatter.core.model:app-dirty-flags app)))
+    ;; Only recompute layout if layout flag is dirty
+    (when (member :layout dirty-flags)
+      (let ((size (clatter.terminal:terminal-size)))
+        (clatter.ui.layout:layout-compute *layout* (first size) (second size) app)))
+    
+    ;; Render only dirty panels with synchronized update
+    (clatter.ansi:begin-sync-update)
+    (when (and (member :buflist dirty-flags) (clatter.ui.layout:layout-buflist *layout*))
+      (clatter.ui.widgets:panel-render (clatter.ui.layout:layout-buflist *layout*)))
+    (when (and (member :chat dirty-flags) (clatter.ui.layout:layout-chat-a *layout*))
+      (clatter.ui.widgets:panel-render (clatter.ui.layout:layout-chat-a *layout*)))
+    (when (and (member :chat dirty-flags) (clatter.ui.layout:layout-chat-b *layout*))
+      (clatter.ui.widgets:panel-render (clatter.ui.layout:layout-chat-b *layout*)))
+    (when (and (member :chat dirty-flags) (clatter.ui.layout:layout-nicklist *layout*))
+      (clatter.ui.widgets:panel-render (clatter.ui.layout:layout-nicklist *layout*)))
+    (when (and (member :status dirty-flags) (clatter.ui.layout:layout-status *layout*))
+      (clatter.ui.widgets:panel-render (clatter.ui.layout:layout-status *layout*)))
+    (when (and (member :input dirty-flags) (clatter.ui.layout:layout-input *layout*))
+      (clatter.ui.widgets:panel-render (clatter.ui.layout:layout-input *layout*)))
+    (clatter.ansi:end-sync-update)
+    (force-output *terminal-io*))
   
   (clatter.core.model:clear-dirty app))
 
@@ -219,14 +235,26 @@
 ;;; ============================================================
 
 (defun switch-buffer (app direction)
-  "Switch to next/previous buffer in visual order."
-  (let* ((order (clatter.core.model:app-buffer-order app))
-         (current-id (clatter.core.model:app-current-buffer-id app))
+  "Switch to next/previous buffer in visual order.
+   In split mode, changes the active pane's buffer."
+  (let* ((ui (clatter.core.model:app-ui app))
+         (order (clatter.core.model:app-buffer-order app))
+         (split-mode (clatter.core.model:ui-split-mode ui))
+         (active-pane (clatter.core.model:ui-active-pane ui))
+         ;; Determine which buffer ID to change based on active pane
+         (changing-split-pane (and split-mode 
+                                   (member active-pane '(:right :bottom))))
+         (current-id (if changing-split-pane
+                         (clatter.core.model:ui-split-buffer-id ui)
+                         (clatter.core.model:app-current-buffer-id app)))
          (pos (position current-id order)))
     (when (and order pos)
       (let* ((new-pos (mod (+ pos direction) (length order)))
              (new-id (nth new-pos order)))
-        (setf (clatter.core.model:app-current-buffer-id app) new-id)
+        ;; Update the appropriate buffer ID
+        (if changing-split-pane
+            (setf (clatter.core.model:ui-split-buffer-id ui) new-id)
+            (setf (clatter.core.model:app-current-buffer-id app) new-id))
         ;; Clear unread when switching to buffer
         (let ((buf (clatter.core.model:find-buffer app new-id)))
           (when buf

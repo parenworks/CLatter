@@ -22,11 +22,15 @@
   ;; Extract and track URLs from message text
   (buffer-add-urls buf (clatter.core.model:message-text msg))
   ;; Only increment unread if buffer is not visible in either pane
-  (unless (buffer-visible-p app buf)
-    (incf (buffer-unread-count buf))
-    (when highlightp
-      (incf (buffer-highlight-count buf))))
-  (mark-dirty app :chat :buflist :status))
+  (if (buffer-visible-p app buf)
+      ;; Visible buffer - update chat panel
+      (mark-dirty app :chat :status)
+      ;; Hidden buffer - only update buflist for unread count
+      (progn
+        (incf (buffer-unread-count buf))
+        (when highlightp
+          (incf (buffer-highlight-count buf)))
+        (mark-dirty app :buflist))))
 
 (defmethod apply-event ((app app) event)
   ;; default: ignore unknown events
