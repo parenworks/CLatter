@@ -158,7 +158,8 @@
   (let* ((st (%istate app))
          (text (input-text st))
          (cursor (input-cursor st))
-         (buf (active-buffer app)))  ;; Use active-buffer for split pane support
+         (buf (clatter.core.model:active-buffer app)))  ;; Use active-buffer for split pane support
+    (unless st (return-from input-tab-complete))
     ;; Find word start (go back to space or start of line)
     (let* ((word-start (or (position #\Space text :end cursor :from-end t) -1))
            (word-start (1+ word-start))
