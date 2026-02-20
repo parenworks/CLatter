@@ -158,7 +158,7 @@
   (let* ((st (%istate app))
          (text (input-text st))
          (cursor (input-cursor st))
-         (buf (current-buffer app)))
+         (buf (active-buffer app)))  ;; Use active-buffer for split pane support
     ;; Find word start (go back to space or start of line)
     (let* ((word-start (or (position #\Space text :end cursor :from-end t) -1))
            (word-start (1+ word-start))

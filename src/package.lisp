@@ -29,6 +29,7 @@
    #:cursor-up #:cursor-down #:cursor-forward #:cursor-back
    #:clear-screen #:clear-line #:clear-to-eol #:reset
    #:begin-sync-update #:end-sync-update
+   #:begin-hyperlink #:end-hyperlink #:hyperlink
    #:enter-alternate-screen #:leave-alternate-screen
    #:fg #:bg #:fg-rgb #:bg-rgb
    #:bold #:dim #:italic #:underline #:inverse

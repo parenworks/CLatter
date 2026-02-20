@@ -4,6 +4,33 @@
 ;;; Panels and widgets for the TUI
 
 ;;; ============================================================
+;;; URL Detection and Clickable Links
+;;; ============================================================
+
+(defparameter *url-regex* 
+  (cl-ppcre:create-scanner "https?://[^\\s<>\"']+")
+  "Regex to match URLs in text")
+
+(defun print-text-with-links (text)
+  "Print TEXT with URLs rendered as clickable hyperlinks."
+  (let ((pos 0)
+        (len (length text)))
+    (cl-ppcre:do-matches (start end *url-regex* text)
+      ;; Print text before URL
+      (when (> start pos)
+        (princ (subseq text pos start) *terminal-io*))
+      ;; Print URL as hyperlink
+      (let ((url (subseq text start end)))
+        (clatter.ansi:begin-hyperlink url)
+        (clatter.ansi:underline)
+        (princ url *terminal-io*)
+        (clatter.ansi:reset))
+      (setf pos end))
+    ;; Print remaining text after last URL
+    (when (< pos len)
+      (princ (subseq text pos) *terminal-io*))))
+
+;;; ============================================================
 ;;; Base Panel Class
 ;;; ============================================================
 
@@ -49,19 +76,17 @@
   (if (panel-border-p panel) (- (panel-height panel) 2) (panel-height panel)))
 
 (defmethod panel-clear ((panel panel))
-  "Clear only the content area of the panel (not the border)."
+  "Clear only the content area of the panel (not the border).
+   Note: To reduce flicker, prefer padding lines to full width instead of clearing."
   (when (panel-visible-p panel)
-    (let ((theme (clatter.ui.theme:current-theme)))
-      (when (clatter.ui.theme:theme-bg theme)
-        (clatter.ansi:emit-bg (clatter.ui.theme:theme-bg theme) *terminal-io*))
-      ;; Only clear content area to reduce flicker
-      (clatter.ansi:fill-rect (panel-content-x panel) (panel-content-y panel)
-                               (panel-content-width panel) (panel-content-height panel))
-      (clatter.ansi:reset))))
+    ;; Don't set background color - use terminal default to avoid dark areas
+    (clatter.ansi:fill-rect (panel-content-x panel) (panel-content-y panel)
+                             (panel-content-width panel) (panel-content-height panel))
+    (clatter.ansi:reset)))
 
 (defmethod panel-render :before ((panel panel))
   (when (panel-visible-p panel)
-    ;; Draw border first (doesn't flicker as much)
+    ;; Draw border only (no clearing - content will overwrite with padded lines)
     (when (panel-border-p panel)
       (let* ((theme (clatter.ui.theme:current-theme))
              (border-color (if (panel-active-p panel)
@@ -81,9 +106,7 @@
         (when (panel-title panel)
           (clatter.ansi:cursor-to (panel-y panel) (+ (panel-x panel) 2))
           (princ (panel-title panel) *terminal-io*))
-        (clatter.ansi:reset)))
-    ;; Clear content area after border
-    (panel-clear panel)))
+        (clatter.ansi:reset)))))
 
 (defmethod panel-render ((panel panel))
   ;; Base implementation does nothing beyond border
@@ -297,30 +320,42 @@
                      (firstp (getf dl :first))
                      (lvl-color (clatter.ui.theme:theme-level-color theme level)))
                 (clatter.ansi:cursor-to (+ content-y y) content-x)
-                (cond
-                  ;; Highlighted messages
-                  (highlightp
-                   (clatter.ansi:emit-fg (clatter.ui.theme:theme-mention-indicator theme) *terminal-io*)
-                   (clatter.ansi:bold)
-                   (princ nick-display *terminal-io*)
-                   (princ text-display *terminal-io*)
-                   (clatter.ansi:reset))
-                  ;; Level-colored messages
-                  (lvl-color
-                   (clatter.ansi:emit-fg lvl-color *terminal-io*)
-                   (princ nick-display *terminal-io*)
-                   (princ text-display *terminal-io*)
-                   (clatter.ansi:reset))
-                  ;; Regular messages
-                  (t
-                   (when firstp
-                     (let ((nick-color (clatter.ui.theme:theme-nick-color theme nick-raw)))
-                       (when nick-color
-                         (clatter.ansi:emit-fg nick-color *terminal-io*))))
-                   (princ nick-display *terminal-io*)
-                   (clatter.ansi:reset)
-                   (princ text-display *terminal-io*))))
-              (incf y))))))))
+                ;; Build full line and pad to content width to avoid clearing
+                (let* ((full-line (concatenate 'string nick-display text-display))
+                       (line-len (length full-line))
+                       (padding (max 0 (- content-w line-len)))
+                       (pad-str (make-string padding :initial-element #\Space)))
+                  (cond
+                    ;; Highlighted messages
+                    (highlightp
+                     (clatter.ansi:emit-fg (clatter.ui.theme:theme-mention-indicator theme) *terminal-io*)
+                     (clatter.ansi:bold)
+                     (princ full-line *terminal-io*)
+                     (clatter.ansi:reset)
+                     (princ pad-str *terminal-io*))
+                    ;; Level-colored messages
+                    (lvl-color
+                     (clatter.ansi:emit-fg lvl-color *terminal-io*)
+                     (princ full-line *terminal-io*)
+                     (clatter.ansi:reset)
+                     (princ pad-str *terminal-io*))
+                    ;; Regular messages - render URLs as clickable links
+                    (t
+                     (when firstp
+                       (let ((nick-color (clatter.ui.theme:theme-nick-color theme nick-raw)))
+                         (when nick-color
+                           (clatter.ansi:emit-fg nick-color *terminal-io*))))
+                     (princ nick-display *terminal-io*)
+                     (clatter.ansi:reset)
+                     (print-text-with-links text-display)
+                     (princ pad-str *terminal-io*))))
+              (incf y)))
+          ;; Clear any remaining lines below messages
+          (let ((blank-line (make-string content-w :initial-element #\Space)))
+            (loop while (< y content-h) do
+              (clatter.ansi:cursor-to (+ content-y y) content-x)
+              (princ blank-line *terminal-io*)
+              (incf y)))))))))
 
 ;;; ============================================================
 ;;; Nick List Panel

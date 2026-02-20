@@ -183,6 +183,18 @@
   "Reset all text attributes"
   (format *terminal-io* "~C[0m" *escape*))
 
+(defun bold ()
+  "Enable bold text"
+  (format *terminal-io* "~C[1m" *escape*))
+
+(defun underline ()
+  "Enable underlined text"
+  (format *terminal-io* "~C[4m" *escape*))
+
+(defun inverse ()
+  "Enable inverse/reverse video"
+  (format *terminal-io* "~C[7m" *escape*))
+
 (defun begin-sync-update ()
   "Begin synchronized update mode - terminal buffers output until end-sync-update"
   (format *terminal-io* "~C[?2026h" *escape*))
@@ -190,6 +202,20 @@
 (defun end-sync-update ()
   "End synchronized update mode - terminal displays buffered content"
   (format *terminal-io* "~C[?2026l" *escape*))
+
+(defun begin-hyperlink (url)
+  "Begin an OSC 8 hyperlink. Text after this will be clickable."
+  (format *terminal-io* "~C]8;;~A~C\\" *escape* url #\Bel))
+
+(defun end-hyperlink ()
+  "End an OSC 8 hyperlink."
+  (format *terminal-io* "~C]8;;~C\\" *escape* #\Bel))
+
+(defun hyperlink (url text)
+  "Output TEXT as a clickable hyperlink to URL."
+  (begin-hyperlink url)
+  (princ text *terminal-io*)
+  (end-hyperlink))
 
 (defun enter-alternate-screen ()
   "Switch to alternate screen buffer"
