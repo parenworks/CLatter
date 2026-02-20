@@ -13,22 +13,26 @@
 
 (defun print-text-with-links (text)
   "Print TEXT with URLs rendered as clickable hyperlinks."
-  (let ((pos 0)
-        (len (length text)))
-    (cl-ppcre:do-matches (start end *url-regex* text)
-      ;; Print text before URL
-      (when (> start pos)
-        (princ (subseq text pos start) *terminal-io*))
-      ;; Print URL as hyperlink
-      (let ((url (subseq text start end)))
-        (clatter.ansi:begin-hyperlink url)
-        (clatter.ansi:underline)
-        (princ url *terminal-io*)
-        (clatter.ansi:reset))
-      (setf pos end))
-    ;; Print remaining text after last URL
-    (when (< pos len)
-      (princ (subseq text pos) *terminal-io*))))
+  (if (or (null text) (zerop (length text)))
+      (princ "" *terminal-io*)
+      (let ((pos 0)
+            (len (length text))
+            (found-url nil))
+        (cl-ppcre:do-matches (start end *url-regex* text)
+          (setf found-url t)
+          ;; Print text before URL
+          (when (> start pos)
+            (princ (subseq text pos start) *terminal-io*))
+          ;; Print URL as hyperlink
+          (let ((url (subseq text start end)))
+            (clatter.ansi:begin-hyperlink url)
+            (clatter.ansi:underline)
+            (princ url *terminal-io*)
+            (clatter.ansi:reset))
+          (setf pos end))
+        ;; Print remaining text after last URL (or all text if no URLs)
+        (when (< pos len)
+          (princ (subseq text pos) *terminal-io*)))))
 
 ;;; ============================================================
 ;;; Base Panel Class
@@ -86,7 +90,7 @@
 
 (defmethod panel-render :before ((panel panel))
   (when (panel-visible-p panel)
-    ;; Draw border only (no clearing - content will overwrite with padded lines)
+    ;; Draw border first
     (when (panel-border-p panel)
       (let* ((theme (clatter.ui.theme:current-theme))
              (border-color (if (panel-active-p panel)
@@ -106,7 +110,9 @@
         (when (panel-title panel)
           (clatter.ansi:cursor-to (panel-y panel) (+ (panel-x panel) 2))
           (princ (panel-title panel) *terminal-io*))
-        (clatter.ansi:reset)))))
+        (clatter.ansi:reset)))
+    ;; Clear content area to remove stale content
+    (panel-clear panel)))
 
 (defmethod panel-render ((panel panel))
   ;; Base implementation does nothing beyond border
@@ -305,6 +311,7 @@
                      (setf first-line nil))
                    (push (nreverse msg-lines) message-groups)))
         ;; Display from top - newest messages at top
+        ;; message-groups is already newest-first (due to push)
         (let* ((display-lines (apply #'append message-groups))
                (total (length display-lines))
                (start (min offset (max 0 (- total content-h))))
@@ -348,14 +355,14 @@
                      (princ nick-display *terminal-io*)
                      (clatter.ansi:reset)
                      (print-text-with-links text-display)
-                     (princ pad-str *terminal-io*))))
-              (incf y)))
+                     (princ pad-str *terminal-io*))))))
+            (incf y))
           ;; Clear any remaining lines below messages
           (let ((blank-line (make-string content-w :initial-element #\Space)))
             (loop while (< y content-h) do
               (clatter.ansi:cursor-to (+ content-y y) content-x)
               (princ blank-line *terminal-io*)
-              (incf y)))))))))
+              (incf y))))))))
 
 ;;; ============================================================
 ;;; Nick List Panel

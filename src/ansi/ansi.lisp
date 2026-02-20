@@ -204,12 +204,13 @@
   (format *terminal-io* "~C[?2026l" *escape*))
 
 (defun begin-hyperlink (url)
-  "Begin an OSC 8 hyperlink. Text after this will be clickable."
-  (format *terminal-io* "~C]8;;~A~C\\" *escape* url #\Bel))
+  "Begin an OSC 8 hyperlink. Text after this will be clickable.
+   Format: ESC ] 8 ; ; URL ST where ST is ESC \\"
+  (format *terminal-io* "~C]8;;~A~C\\" *escape* url *escape*))
 
 (defun end-hyperlink ()
   "End an OSC 8 hyperlink."
-  (format *terminal-io* "~C]8;;~C\\" *escape* #\Bel))
+  (format *terminal-io* "~C]8;;~C\\" *escape* *escape*))
 
 (defun hyperlink (url text)
   "Output TEXT as a clickable hyperlink to URL."
